@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 
 import com.amazon.speech.json.SpeechletRequestEnvelope;
 
@@ -12,6 +13,9 @@ public class AlexaRequestQueue {
 	private Map<String, SpeechletRequestEnvelope> alexaRequests;
 	
 	private Set<Object> registeredObjects;
+	
+	private Semaphore semaphore = new Semaphore(0);
+	private Object mutex;
 	
 	private AlexaRequestQueue() {
 		alexaRequests = new HashMap<String, SpeechletRequestEnvelope>();
@@ -46,6 +50,15 @@ public class AlexaRequestQueue {
 		return userId + applicationId;
 	}
 	
+	public Object getMutex(){
+		synchronized(this){
+			if(mutex == null){
+				mutex = new Object();
+			}
+		}
+		return mutex;
+	}
+	
 	public void registerThread(Object object){
 		registeredObjects.add(object);
 	}
@@ -55,8 +68,13 @@ public class AlexaRequestQueue {
 	}
 	
 	public void notifyAllThreads(){
-		for(Object object : registeredObjects){
-			object.notifyAll();
-		}
+			for(Object object : registeredObjects){
+				synchronized(object){
+					object.notifyAll();
+				}
+			}
+			synchronized(mutex){
+				mutex.notifyAll();
+			}
 	}
 }

@@ -26,7 +26,7 @@ public class AudioFileRequestController {
     @RequestMapping(value = "/rest/audioFileRequest", method = RequestMethod.POST, consumes = "application/json")
     public @ResponseBody SpeechletRequestEnvelope sendAudioFile(@RequestBody SendAudioRequest body, @RequestHeader(value="Authorization") String authorizationHeader) throws AlexaModelTesterException {
     	AVSClient client = appContext.getBean("avsClient", AVSClient.class);
-    	client.recognizeSpeech(authorizationHeader, new RecognizeSpeechRequest(),body.getAudioFileUrl());
+    	client.recognizeSpeechAsync(authorizationHeader, new RecognizeSpeechRequest(),body.getAudioFileUrl());
     	//SWEET JESUS MAKE SURE THIS WAS SUCCESSFUL BEFORE DOING THE CALL BELOW
     	SpeechletRequestEnvelope alexaRequest = waitForAlexaRequest(body.getUserId(),body.getApplicationId());
     	if(alexaRequest != null){
@@ -39,11 +39,13 @@ public class AudioFileRequestController {
 
 	private SpeechletRequestEnvelope waitForAlexaRequest(String userId, String applicationId) {
 
-		alexaRequestQueue.registerThread(this);
+//		alexaRequestQueue.registerThread(this);
 		SpeechletRequestEnvelope alexaRequest = alexaRequestQueue.getAlexaResponse(userId, applicationId);
 		if(alexaRequest != null){
 			return alexaRequest;
 		}
+		
+		Object mutex = alexaRequestQueue.getMutex();
 		long maxWait = 5000;
 		long endTime = System.currentTimeMillis() + maxWait;
 		while(true){
@@ -55,7 +57,10 @@ public class AudioFileRequestController {
 			System.out.println("Waiting.");
 			
 			try {
-					wait(endTime - currentTime);
+				
+				synchronized(mutex){
+					mutex.wait(endTime - currentTime);
+				}
 				
 				System.out.println("Wait finished, returning null.");
 				return null;
@@ -67,5 +72,12 @@ public class AudioFileRequestController {
 				}
 			}
 		}
+	}
+	
+	class AsynchronousCall implements Runnable{
+
+		public void run() {
+		}
+		
 	}
 }
