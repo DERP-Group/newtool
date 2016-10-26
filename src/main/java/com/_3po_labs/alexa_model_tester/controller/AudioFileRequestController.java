@@ -1,9 +1,18 @@
 package com._3po_labs.alexa_model_tester.controller;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.concurrent.Future;
+
+import javax.ws.rs.core.Response;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
-import org.springframework.http.MediaType;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,67 +26,62 @@ import com.threepio_labs.avsclient.model.RecognizeSpeechRequest;
 @Controller
 @Scope("request")
 public class AudioFileRequestController {
+
+	private final Logger LOG = LoggerFactory.getLogger(this.getClass());
 	
 	@Autowired
 	private ApplicationContext appContext;
+	
+/*	@Autowired
+	private Environment env;*/
+	
+	@Value("${audioRequest.maxWait}")
+	private int maxWait;
 	
 	private AlexaRequestQueue alexaRequestQueue = AlexaRequestQueue.getInstance();
 	
     @RequestMapping(value = "/rest/audioFileRequest", method = RequestMethod.POST, consumes = "application/json")
     public @ResponseBody SpeechletRequestEnvelope sendAudioFile(@RequestBody SendAudioRequest body, @RequestHeader(value="Authorization") String authorizationHeader) throws AlexaModelTesterException {
     	AVSClient client = appContext.getBean("avsClient", AVSClient.class);
-    	client.recognizeSpeechAsync(authorizationHeader, new RecognizeSpeechRequest(),body.getAudioFileUrl());
-    	//SWEET JESUS MAKE SURE THIS WAS SUCCESSFUL BEFORE DOING THE CALL BELOW
-    	SpeechletRequestEnvelope alexaRequest = waitForAlexaRequest(body.getUserId(),body.getApplicationId());
-    	if(alexaRequest != null){
-    		return alexaRequest;
-    	}else{
-    		System.out.println("output was null.");
-    	}
-        throw new AlexaModelTesterException("No response found in the alotted time.");
+    	Future<Response> response = client.recognizeSpeechAsync(authorizationHeader, new RecognizeSpeechRequest(),body.getAudioFileUrl());
+    	return waitForAlexaRequest(body.getUserId(),body.getApplicationId());
     }
 
-	private SpeechletRequestEnvelope waitForAlexaRequest(String userId, String applicationId) {
-
-//		alexaRequestQueue.registerThread(this);
+	private SpeechletRequestEnvelope waitForAlexaRequest(String userId, String applicationId) throws AlexaModelTesterException {
+		if(userId == null || applicationId == null){
+	        throw new AlexaModelTesterException("Valid userId and applicationId required.");
+		}
+		
 		SpeechletRequestEnvelope alexaRequest = alexaRequestQueue.getAlexaResponse(userId, applicationId);
 		if(alexaRequest != null){
 			return alexaRequest;
 		}
 		
-		Object mutex = alexaRequestQueue.getMutex();
-		long maxWait = 5000;
+		Object semaphore = alexaRequestQueue.getSemaphore();
 		long endTime = System.currentTimeMillis() + maxWait;
 		while(true){
 			long currentTime = System.currentTimeMillis();
 			if(currentTime >= endTime){
-				System.out.println("Past endtime, exiting.");
-				return null;
+				LOG.error("Past endtime, exiting.");
+		        throw new AlexaModelTesterException("No response found in the alotted time.");
 			}
-			System.out.println("Waiting.");
 			
 			try {
-				
-				synchronized(mutex){
-					mutex.wait(endTime - currentTime);
+				LOG.debug("Waiting until " + Instant.ofEpochMilli(endTime).toString());
+				synchronized(semaphore){
+					semaphore.wait(endTime - currentTime);
 				}
-				
-				System.out.println("Wait finished, returning null.");
-				return null;
-			} catch (InterruptedException e) {
-				System.out.println("Interrupted");
+
+				LOG.debug("Stopped waiting, checking for results for userId '" + userId.substring(0,25)
+				+ "...' and applicationId '" + applicationId + "'.");
 				alexaRequest = alexaRequestQueue.getAlexaResponse(userId, applicationId);
 				if(alexaRequest != null){
 					return alexaRequest;
 				}
+			} catch (InterruptedException e) {
+				LOG.error("Thread interrupted.");
+		        throw new AlexaModelTesterException("Thread waiting for Alexa request was interrupted unexpectedly.");
 			}
 		}
-	}
-	
-	class AsynchronousCall implements Runnable{
-
-		public void run() {
-		}
-		
 	}
 }

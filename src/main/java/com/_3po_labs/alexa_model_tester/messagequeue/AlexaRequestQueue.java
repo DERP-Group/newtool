@@ -1,25 +1,22 @@
 package com._3po_labs.alexa_model_tester.messagequeue;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Semaphore;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.amazon.speech.json.SpeechletRequestEnvelope;
 
 public class AlexaRequestQueue {
 
+	private final Logger LOG = LoggerFactory.getLogger(this.getClass());
+
 	private Map<String, SpeechletRequestEnvelope> alexaRequests;
-	
-	private Set<Object> registeredObjects;
-	
-	private Semaphore semaphore = new Semaphore(0);
-	private Object mutex;
+	private Object semaphore;
 	
 	private AlexaRequestQueue() {
 		alexaRequests = new HashMap<String, SpeechletRequestEnvelope>();
-		registeredObjects = new HashSet<Object>();
 	}
 
 	private static class SingletonHolder {
@@ -50,31 +47,19 @@ public class AlexaRequestQueue {
 		return userId + applicationId;
 	}
 	
-	public Object getMutex(){
+	public Object getSemaphore(){
 		synchronized(this){
-			if(mutex == null){
-				mutex = new Object();
+			if(semaphore == null){
+				semaphore = new Object();
+				LOG.debug("Initialized semaphore as: " + semaphore);
 			}
 		}
-		return mutex;
-	}
-	
-	public void registerThread(Object object){
-		registeredObjects.add(object);
-	}
-	
-	public void deregisterThread(Object object){
-		registeredObjects.remove(object);
+		return semaphore;
 	}
 	
 	public void notifyAllThreads(){
-			for(Object object : registeredObjects){
-				synchronized(object){
-					object.notifyAll();
-				}
-			}
-			synchronized(mutex){
-				mutex.notifyAll();
+			synchronized(semaphore){
+				semaphore.notifyAll();
 			}
 	}
 }

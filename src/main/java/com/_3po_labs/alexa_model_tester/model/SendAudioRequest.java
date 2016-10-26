@@ -1,9 +1,14 @@
 package com._3po_labs.alexa_model_tester.model;
 
+import javax.validation.constraints.NotNull;
+
 public class SendAudioRequest {
 
+	@NotNull
 	private String audioFileUrl;
+	@NotNull
 	private String userId;
+	@NotNull
 	private String applicationId;
 
 	public String getAudioFileUrl() {
