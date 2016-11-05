@@ -1,7 +1,7 @@
 package com._3po_labs.alexa_model_tester.controller;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import javax.ws.rs.core.Response;
@@ -11,12 +11,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Scope;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.*;
 import org.springframework.web.bind.annotation.*;
 
-import com._3po_labs.alexa_model_tester.exception.AlexaModelTesterException;
+import com._3po_labs.alexa_model_tester.exception.NewtoolException;
+import com._3po_labs.alexa_model_tester.exception.NewtoolExceptionCode;
 import com._3po_labs.alexa_model_tester.messagequeue.AlexaRequestQueue;
 import com._3po_labs.alexa_model_tester.model.SendAudioRequest;
 import com.amazon.speech.json.SpeechletRequestEnvelope;
@@ -24,7 +23,6 @@ import com.threepio_labs.avsclient.client.AVSClient;
 import com.threepio_labs.avsclient.model.RecognizeSpeechRequest;
 
 @Controller
-@Scope("request")
 public class AudioFileRequestController {
 
 	private final Logger LOG = LoggerFactory.getLogger(this.getClass());
@@ -32,24 +30,21 @@ public class AudioFileRequestController {
 	@Autowired
 	private ApplicationContext appContext;
 	
-/*	@Autowired
-	private Environment env;*/
-	
 	@Value("${audioRequest.maxWait}")
 	private int maxWait;
 	
 	private AlexaRequestQueue alexaRequestQueue = AlexaRequestQueue.getInstance();
 	
     @RequestMapping(value = "/rest/audioFileRequest", method = RequestMethod.POST, consumes = "application/json")
-    public @ResponseBody SpeechletRequestEnvelope sendAudioFile(@RequestBody SendAudioRequest body, @RequestHeader(value="Authorization") String authorizationHeader) throws AlexaModelTesterException {
+    public @ResponseBody SpeechletRequestEnvelope sendAudioFile(@RequestBody SendAudioRequest body, @RequestHeader(value="Authorization") String authorizationHeader) throws NewtoolException {
     	AVSClient client = appContext.getBean("avsClient", AVSClient.class);
     	Future<Response> response = client.recognizeSpeechAsync(authorizationHeader, new RecognizeSpeechRequest(),body.getAudioFileUrl());
-    	return waitForAlexaRequest(body.getUserId(),body.getApplicationId());
+    	return waitForAlexaRequest(body.getUserId(),body.getApplicationId(), response);
     }
 
-	private SpeechletRequestEnvelope waitForAlexaRequest(String userId, String applicationId) throws AlexaModelTesterException {
+	private SpeechletRequestEnvelope waitForAlexaRequest(String userId, String applicationId, Future<Response> response) throws NewtoolException {
 		if(userId == null || applicationId == null){
-	        throw new AlexaModelTesterException("Valid userId and applicationId required.");
+	        throw new NewtoolException("Valid userId and applicationId required.", NewtoolExceptionCode.INVALID);
 		}
 		
 		SpeechletRequestEnvelope alexaRequest = alexaRequestQueue.getAlexaResponse(userId, applicationId);
@@ -60,10 +55,19 @@ public class AudioFileRequestController {
 		Object semaphore = alexaRequestQueue.getSemaphore();
 		long endTime = System.currentTimeMillis() + maxWait;
 		while(true){
+			// This code should be broken out into its own thread outside this method 
+			// that can similarly interrupt this thread once the future completes
+			try {
+				if(response.isDone() && response.get() != null && (response.get().getStatus() == 401 || response.get().getStatus() == 403)){
+					throw new NewtoolException("Request did not include a valid Login With Amazon access token.", NewtoolExceptionCode.UNAUTHORIZED);
+				}
+			} catch (InterruptedException | ExecutionException e) {
+				throw new NewtoolException("Unknown exception: " + e.getMessage(), NewtoolExceptionCode.GENERAL);
+			}
 			long currentTime = System.currentTimeMillis();
 			if(currentTime >= endTime){
 				LOG.error("Past endtime, exiting.");
-		        throw new AlexaModelTesterException("No response found in the alotted time.");
+		        throw new NewtoolException("No response found in the alotted time.", NewtoolExceptionCode.ROUNDTRIP_TIMEOUT);
 			}
 			
 			try {
@@ -80,7 +84,7 @@ public class AudioFileRequestController {
 				}
 			} catch (InterruptedException e) {
 				LOG.error("Thread interrupted.");
-		        throw new AlexaModelTesterException("Thread waiting for Alexa request was interrupted unexpectedly.");
+		        throw new NewtoolException("Thread waiting for Alexa request was interrupted unexpectedly.", NewtoolExceptionCode.GENERAL);
 			}
 		}
 	}

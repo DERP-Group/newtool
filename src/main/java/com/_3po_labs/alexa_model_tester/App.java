@@ -12,7 +12,7 @@ public class App {
 
     public static void main(String[] args) throws Exception {
 
-        ApplicationContext ctx = new AnnotationConfigApplicationContext(AVSClientConfig.class);
+//        ApplicationContext ctx = new AnnotationConfigApplicationContext(AVSClientConfig.class);
         SpringApplication.run(App.class, args);
     }
 }
