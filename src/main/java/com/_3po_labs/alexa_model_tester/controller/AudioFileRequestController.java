@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import com._3po_labs.alexa_model_tester.exception.NewtoolException;
 import com._3po_labs.alexa_model_tester.exception.NewtoolExceptionCode;
 import com._3po_labs.alexa_model_tester.messagequeue.AlexaRequestQueue;
+import com._3po_labs.alexa_model_tester.model.RoundtripResponse;
 import com._3po_labs.alexa_model_tester.model.SendAudioRequest;
 import com.amazon.speech.json.SpeechletRequestEnvelope;
 import com.threepio_labs.avsclient.client.AVSClient;
@@ -36,10 +37,13 @@ public class AudioFileRequestController {
 	private AlexaRequestQueue alexaRequestQueue = AlexaRequestQueue.getInstance();
 	
     @RequestMapping(value = "/rest/audioFileRequest", method = RequestMethod.POST, consumes = "application/json")
-    public @ResponseBody SpeechletRequestEnvelope sendAudioFile(@RequestBody SendAudioRequest body, @RequestHeader(value="Authorization") String authorizationHeader) throws NewtoolException {
+    public @ResponseBody RoundtripResponse sendAudioFile(@RequestBody SendAudioRequest body, @RequestHeader(value="Authorization") String authorizationHeader) throws NewtoolException {
     	AVSClient client = appContext.getBean("avsClient", AVSClient.class);
     	Future<Response> response = client.recognizeSpeechAsync(authorizationHeader, new RecognizeSpeechRequest(),body.getAudioFileUrl());
-    	return waitForAlexaRequest(body.getUserId(),body.getApplicationId(), response);
+    	SpeechletRequestEnvelope alexaSkillsRequest = waitForAlexaRequest(body.getUserId(),body.getApplicationId(), response);
+    	RoundtripResponse roundtripResponse = new RoundtripResponse();
+    	roundtripResponse.setAlexaSkillsRequest(alexaSkillsRequest);
+    	return roundtripResponse;
     }
 
 	private SpeechletRequestEnvelope waitForAlexaRequest(String userId, String applicationId, Future<Response> response) throws NewtoolException {

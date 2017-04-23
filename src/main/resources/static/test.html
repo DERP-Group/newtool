@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Bootstrap 101 Template</title>
+
+    <!-- Bootstrap -->
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap/css/bootstrap-theme.min.css" rel="stylesheet">
+    <link href="css/custom.css" rel="stylesheet">
+  </head>
+  <body>
+  <div id="amazon-root"></div>
+   <script type="text/javascript">
+
+      window.onAmazonLoginReady = function() {
+        amazon.Login.setClientId('amzn1.application-oa2-client.f980cde093ea42ffbc26591f3d291cd8');
+      };
+      (function(d) {
+        var a = d.createElement('script'); a.type = 'text/javascript';
+        a.async = true; a.id = 'amazon-login-sdk';
+        a.src = 'https://api-cdn.amazon.com/sdk/login1.js';
+        d.getElementById('amazon-root').appendChild(a);
+      })(document);
+
+   </script>
+  <br />
+    <div class="container">
+      <form class="form-inline">
+        <div class="form-group col">
+          <label class="sr-only" for="loginWithAmazonInput">LoginWithAmazon token</label>
+          <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="loginWithAmazonInput" placeholder="Atza|123..."><br />
+          <a href id="LoginWithAmazon">
+              <img border="0" alt="Login with Amazon"
+                  src="https://images-na.ssl-images-amazon.com/images/G/01/lwa/btnLWA_gold_156x32.png"
+                  width="156" height="32" />
+           </a>
+        </div>
+        <div class="form-group col">
+          <label class="sr-only" for="audioFileUrlInput">file url</label>
+          <input type="text" class="form-control" id="audioFileUrlInput" placeholder="https://s3.amazon.com/mybucket/myfile.mp3" value="https://dl.dropbox.com/s/beiugnogocyl7dz/NewTool.wav?dl=1"/>
+        </div>
+        <div class="form-group col">
+          <label class="sr-only" for="userIdInput">LoginWithAmazon token</label>
+          <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="userIdInput" placeholder="amzn1.ask.account.AETT..." value="amzn1.ask.account.AETT2NXTOBHX3FVNK2QKQMQ7C36EW444ZYVMGETZY5XJNBOC2GA54CCRYJSNENP5GXZDTLX2MVX6CYBXTYI4EI5BPSTLTFIXEV7FI5IKVOBRJRIWZP4TB2T2YGVCS4ILGMYMRNJXLCAMW44YGA4TTXQW32CGX7OMSEWI6EHD6MMVCJWVWAM3IKCPWUNYAZ7NQCSYLMCIRFFMVOY" />
+        </div>
+        <div class="form-group col">
+          <label class="sr-only" for="applicationIdInput">LoginWithAmazon token</label>
+          <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="applicationIdInput" placeholder="amzn1.ask.skill.53f..." value="amzn1.ask.skill.53f4e8ec-d683-4b12-b741-ec323289a4cc" />
+        </div>
+        
+        <div class="form-group col">
+          <button type="button" class="btn btn-primary" id="submit-request">Submit</button>
+        </div>
+      </form>
+    </div>
+    <br />
+    <br />
+    <div class="container">
+      <div class="panel panel-primary">
+        <div class="panel-heading">
+          Alexa Skills Request Body
+        </div>
+        <div class="panel-body">
+          <pre><code id="alexaRequestCode">//Fill in inputs above and click "Submit"</code></pre>
+        </div>
+      </div>
+    </div>
+    <br />
+    <div class="container">
+      <div class="panel panel-primary">
+        <div class="panel-heading">Sample values:</div>
+        <div class="panel-body">
+          <ul>
+            <li>FileUrl: https://dl.dropbox.com/s/beiugnogocyl7dz/NewTool.wav?dl=1</li>
+            <li>ApplicationId: amzn1.ask.account.AETT2NXTOBHX3FVNK2QKQMQ7C36EW444ZYVMGETZY5XJNBOC2GA54CCRYJSNENP5GXZDTLX2MVX6CYBXTYI4EI5BPSTLTFIXEV7FI5IKVOBRJRIWZP4TB2T2YGVCS4ILGMYMRNJXLCAMW44YGA4TTXQW32CGX7OMSEWI6EHD6MMVCJWVWAM3IKCPWUNYAZ7NQCSYLMCIRFFMVOY</li>
+            <li>UserId: amzn1.ask.skill.53f4e8ec-d683-4b12-b741-ec323289a4cc</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+
+    <script type="text/javascript">
+
+       document.getElementById('LoginWithAmazon').onclick = function() {
+       options = { scope : 'alexa:all', scope_data : {'alexa:all':{'productID':'AlexaTestUtil','productInstanceAttributes':{'deviceSerialNumber':'1'}}}, response_type : 'code' };
+       console.log(options);
+       amazon.Login.authorize(options,
+           'https://eric.3po-labs.com:12443/test.html');
+       return false;
+       };
+
+    </script>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="js/lib/jquery-3.2.1.min.js"></script>
+    <script src="js/src/custom.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="bootstrap/js/bootstrap.min.js"></script>
+  </body>
+</html>
